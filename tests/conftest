@@ -1,0 +1,66 @@
+from unittest.mock import MagicMock
+
+import pytest
+
+from app import create_app
+from models import db
+
+
+@pytest.fixture()
+def app():
+	config = ({
+		'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
+		'CSRF_ENABLED': False,
+		'SECRET_KEY': 'sldklnkfjsebjkfbsefkjfbes',
+		'TESTING': True,
+	})
+
+	return create_app(config)
+
+
+@pytest.fixture(scope='function')
+def client(app):
+	return app.test_client()
+
+@pytest.fixture(scope='function')
+def db_session(app):
+	with app.app_context():
+		yield db.session
+
+@pytest.fixture
+def mock_openlibrary_api(monkeypatch):
+    mock = MagicMock()
+    def fake_search_books(query, limit=20, lang=None):
+        if 'test' in query.lower():
+            return ([
+                {
+                    'olid': 'OL123M',
+                    'title': 'lala',
+                    'authors': 'bebe',
+                    'year': 2023,
+                    'cover_url': None
+                }
+            ], None)
+
+    def fake_get_book_details(olid):
+        if olid == 'OL123M':
+            return ({
+                'title': 'lala',
+                'authors': 'bebe',
+                'description': 'hahah',
+                'publish_date': '2023',
+                'publishers': 'lol',
+                'number_of_pages': 100,
+                'subjects': 'python',
+                'cover_url': None,
+                'olid': 'OL123M'
+            }, None)
+        return (None, "Книга не найдена")
+
+    mock.search_books.side_effect = fake_search_books
+    mock.get_book_details.side_effect = fake_get_book_details
+    import book.api
+    monkeypatch.setattr(book.api, 'openlibrary_client', mock)
+    import book.views
+    monkeypatch.setattr(book.views, 'openlibrary_client', mock)
+    return mock
