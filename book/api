@@ -1,0 +1,137 @@
+import requests
+from flask import request
+from flask_restful import Resource
+from flask_login import current_user, login_required
+
+class OpenLibraryAPI:
+    SEARCH_URL = "https://openlibrary.org/search.json"
+    BOOK_URL = "https://openlibrary.org/books/{olid}.json"
+    AUTHOR_URL = "https://openlibrary.org{auth_key}.json"
+    COVER_URL = "https://covers.openlibrary.org/b/id/{cover_i}-M.jpg"
+
+    def __init__(self, timeout: int = 10):
+        self.timeout = timeout
+
+    def search_books(self, query: str, limit: int = 20, lang: str = None):
+        if not query.strip():
+            return [], "Enter your search query"
+        params = {
+            "q": query,
+            "limit": limit,
+            "fields": "key,title,author_name,cover_i,first_publish_year",
+        }
+        if lang: params["lang"] = lang
+        try:
+            response = requests.get(self.SEARCH_URL, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            data = response.json()
+        except requests.exceptions.RequestException as e:
+            return [], f"error: {e}"
+
+        books = []
+        for doc in data.get("docs", []):
+            olid = doc.get("key", "").split("/")[-1] if "key" in doc else None
+            book = {
+                "olid": olid,
+                "title": doc.get("title", "untitled"),
+                "authors": ", ".join(doc.get("author_name", ["unknown"])),
+                "year": doc.get("first_publish_year", "—"),
+                "cover_url": None
+            }
+            if "cover_i" in doc:
+                book["cover_url"] = self.COVER_URL.format(cover_i=doc["cover_i"])
+            books.append(book)
+        if not books:
+            return [], "Nothing was found for your search."
+        return books, None
+
+    def get_book_details(self, olid: str):
+        url = self.BOOK_URL.format(olid=olid)
+        try:
+            response = requests.get(url, timeout=self.timeout)
+            response.raise_for_status()
+            data = response.json()
+        except requests.exceptions.RequestException as e:
+            return None, f"error: {e}"
+
+        authors = self._resolve_authors(data.get("authors", []), data.get("by_statement"))
+        details = {
+            "title": data.get("title", "untitled"),
+            "authors": authors,
+            "description": self._get_description(data),
+            "publish_date": data.get("publish_date") or "Not specified",
+            "publishers": ", ".join(data.get("publishers", [])) or "Not specified",
+            "number_of_pages": data.get("number_of_pages") or "Not specified",
+            "subjects": ", ".join(data.get("subjects", [])) if data.get("subjects") else None,
+            "cover_url": None,
+            "olid": olid,
+        }
+        cover_id = data.get("covers", [None])[0]
+        if cover_id:
+            details["cover_url"] = self.COVER_URL.format(cover_i=cover_id)
+        return details, None
+
+    def _resolve_authors(self, authors_list, fallback_statement=None):
+        if not authors_list:
+            return fallback_statement if fallback_statement else "Not specified"
+        names = []
+        for author_ref in authors_list:
+            key = author_ref.get("key")
+            if not key:
+                continue
+            author_url = self.AUTHOR_URL.format(auth_key=key)
+            try:
+                resp = requests.get(author_url, timeout=self.timeout)
+                resp.raise_for_status()
+                author_data = resp.json()
+                name = author_data.get("name", "Unknown")
+                names.append(name)
+            except requests.exceptions.RequestException:
+                names.append("Unknown")
+        return ", ".join(names) if names else (fallback_statement or "Unknown")
+
+    def _get_description(self, data):
+        desc = data.get("description")
+        if isinstance(desc, dict):
+            return desc.get("value", "Unknown")
+        return desc if desc else "Unknown"
+
+
+openlibrary_client = OpenLibraryAPI(timeout=10)
+
+
+class SearchAPIResource(Resource):
+    def get(self):
+        query = request.args.get('q', '')
+        if not query:
+            return {'error': 'q обязателен'}, 400
+        books, error = openlibrary_client.search_books(query)
+        if error:
+            return {'error': error}, 500
+        return {'query': query, 'count': len(books), 'results': books}
+
+class BookDetailAPIResource(Resource):
+    def get(self, olid):
+        book, error = openlibrary_client.get_book_details(olid)
+        if error:
+            return {'error': error}, 404
+        return book
+
+class FavoriteListAPIResource(Resource):
+    @login_required
+    def get(self):
+        favorites = current_user.favorite_books
+        return {
+            'user_id': current_user.id,
+            'count': len(favorites),
+            'books': [
+                {
+                    'olid': b.olid,
+                    'title': b.title,
+                    'authors': b.authors,
+                    'cover_url': b.cover_url,
+                    'publish_year': b.publish_year
+                }
+                for b in favorites
+            ]
+        }
