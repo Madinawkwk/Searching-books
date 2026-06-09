@@ -1,0 +1,157 @@
+from flask import render_template, request, redirect, url_for, flash, abort
+from flask.views import MethodView
+from flask_login import current_user, login_required
+from flask_wtf import FlaskForm
+from wtforms import TextAreaField, IntegerField, SubmitField
+from wtforms.validators import DataRequired, NumberRange
+
+from book.api import openlibrary_client
+from models import db, Book, Review, User, Post
+from user.forms import ReviewForm, AccountSettingsForm, EditReviewForm
+
+
+class SearchView(MethodView):
+    def get(self):
+        return render_template('index.html', query='', books=[], error=None)
+
+    def post(self):
+        query = request.form.get('query', '')
+        books, error = openlibrary_client.search_books(query)
+        return render_template('index.html', query=query, books=books, error=error)
+
+class BookDetailView(MethodView):
+    def get(self, olid):
+        book_data, error = openlibrary_client.get_book_details(olid)
+        if error:
+            abort(404, description=error)
+        local_book = Book.query.filter_by(olid=olid).first()
+        if not local_book:
+            local_book = Book(
+                olid=olid,
+                title=book_data['title'],
+                authors=book_data['authors'],
+                cover_url=book_data.get('cover_url'),
+                publish_year=book_data.get('publish_date')
+            )
+            db.session.add(local_book)
+            db.session.commit()
+        in_favorites = current_user.is_authenticated and local_book in current_user.favorite_books
+        form = ReviewForm()
+        reviews = Review.query.filter_by(book_id=local_book.id).order_by(Review.created_at.desc()).all()
+        return render_template('detail.html', book=book_data, local_book=local_book,
+                               in_favorites=in_favorites, form=form, reviews=reviews)
+
+class FavoriteAddView(MethodView):
+    @login_required
+    def post(self, olid):
+        book = Book.query.filter_by(olid=olid).first()
+        if not book:
+            flash('The book was not found in the database', 'danger')
+            return redirect(url_for('search'))
+        if book in current_user.favorite_books:
+            flash('The book is already in favorites', 'info')
+        else:
+            current_user.favorite_books.append(book)
+            db.session.commit()
+            flash('Added to favorites', 'success')
+        return redirect(request.referrer or url_for('book_detail', olid=olid))
+
+class FavoriteRemoveView(MethodView):
+    @login_required
+    def post(self, olid):
+        book = Book.query.filter_by(olid=olid).first()
+        if book and book in current_user.favorite_books:
+            current_user.favorite_books.remove(book)
+            db.session.commit()
+            flash('Deleted from favorites', 'info')
+        return redirect(request.referrer or url_for('favorites'))
+
+class FavoritesView(MethodView):
+    @login_required
+    def get(self):
+        return render_template('favorites.html', books=current_user.favorite_books)
+
+class ReviewCreateView(MethodView):
+    @login_required
+    def post(self, olid):
+        book = Book.query.filter_by(olid=olid).first()
+        if not book:
+            abort(404)
+        form = ReviewForm()
+        if form.validate_on_submit():
+            review = Review(
+                user_id=current_user.id,
+                book_id=book.id,
+                text=form.text.data,
+                rating=form.rating.data
+            )
+            db.session.add(review)
+            db.session.commit()
+            flash('Review added', 'success')
+        return redirect(url_for('book_detail', olid=olid))
+
+class AccountSettingsView(MethodView):
+    @login_required
+    def get(self):
+        form = AccountSettingsForm(obj=current_user)
+        return render_template('account_settings.html', form=form)
+
+    @login_required
+    def post(self):
+        form = AccountSettingsForm()
+        if form.validate_on_submit():
+            if form.new_password.data:
+                if not current_user.check_password(form.current_password.data):
+                    flash('Invalid current password', 'danger')
+                    return render_template('account_settings.html', form=form)
+                current_user.set_password(form.new_password.data)
+
+            # Проверка уникальности email и username (исключая текущего пользователя)
+            if User.query.filter(User.email == form.email.data, User.id != current_user.id).first():
+                flash('This email is already in use', 'danger')
+                return render_template('account_settings.html', form=form)
+            if User.query.filter(User.username == form.username.data, User.id != current_user.id).first():
+                flash('This username is already occupied.', 'danger')
+                return render_template('account_settings.html', form=form)
+
+            current_user.username = form.username.data
+            current_user.email = form.email.data
+            db.session.commit()
+            flash('The settings are saved', 'success')
+            return redirect(url_for('account_settings'))
+        return render_template('account_settings.html', form=form)
+
+class ReviewEditView(MethodView):
+    @login_required
+    def get(self, review_id):
+        review = Review.query.get_or_404(review_id)
+        if review.user_id != current_user.id:
+            abort(403)
+        form = EditReviewForm(obj=review)
+        return render_template('edit_review.html', form=form, review=review)
+
+    @login_required
+    def post(self, review_id):
+        review = Review.query.get_or_404(review_id)
+        if review.user_id != current_user.id:
+            abort(403)
+        form = EditReviewForm()
+        if form.validate_on_submit():
+            review.text = form.text.data
+            review.rating = form.rating.data
+            db.session.commit()
+            flash('Отзыв обновлён', 'success')
+            return redirect(url_for('book_detail', olid=review.book.olid))
+        return render_template('edit_review.html', form=form, review=review)
+
+class ReviewDeleteView(MethodView):
+    @login_required
+    def post(self, review_id):
+        review = Review.query.get_or_404(review_id)
+        if review.user_id != current_user.id:
+            abort(403)
+        olid = review.book.olid
+        db.session.delete(review)
+        db.session.commit()
+        flash('Отзыв удалён', 'success')
+        return redirect(url_for('book_detail', olid=olid))
