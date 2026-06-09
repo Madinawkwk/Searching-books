@@ -1,0 +1,53 @@
+import os
+
+from flask_wtf import FlaskForm
+from flask_wtf.file import FileField, FileAllowed
+from wtforms import StringField, PasswordField, TextAreaField, SubmitField, IntegerField
+from wtforms.validators import DataRequired, Email, Length, EqualTo, NumberRange, Optional
+
+
+
+
+class RegisterForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=3, max=80)])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Password', validators=[DataRequired(), Length(min=6)])
+    confirm = PasswordField('Repeat the password', validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField('Signup')
+
+class LoginForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Password', validators=[DataRequired()])
+    submit = SubmitField('Login')
+
+class ReviewForm(FlaskForm):
+    text = TextAreaField('Review', validators=[DataRequired()])
+    rating = IntegerField('Rating (1-5)', validators=[DataRequired(), NumberRange(min=1, max=5)])
+    submit = SubmitField('Leave a review')
+
+class PostForm(FlaskForm):
+    title = StringField('Title', validators=[DataRequired(), Length(max=200)])
+    content = TextAreaField('Content', validators=[DataRequired()])
+    submit = SubmitField('Submit')
+
+class AccountSettingsForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired(), Length(min=3, max=80)])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    current_password = PasswordField('Current password', validators=[Optional()])
+    new_password = PasswordField('New password', validators=[Optional(), Length(min=6)])
+    confirm_new_password = PasswordField('Repeat the new password', validators=[EqualTo('new_password')])
+    avatar = FileField('Avatar(png, jpg, jpeg, gif)', validators=[
+        Optional(),
+        FileAllowed(['png', 'jpg', 'jpeg', 'gif'])
+    ])
+    submit = SubmitField('Save changes')
+
+class EditPostForm(FlaskForm):
+    title = StringField('Title', validators=[DataRequired(), Length(max=200)])
+    content = TextAreaField('Content', validators=[DataRequired()])
+    submit = SubmitField('Save changes')
+
+class EditReviewForm(FlaskForm):
+    text = TextAreaField('Review', validators=[DataRequired()])
+    rating = IntegerField('Rating (1-5)', validators=[DataRequired(), NumberRange(min=1, max=5)])
+    submit = SubmitField('Save')
