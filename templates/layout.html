@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Моя библиотека{% endblock %}</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 0 15px;
+            background: #fafafa;
+        }
+        nav {
+            background: #333;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin-right: 15px;
+            font-weight: bold;
+        }
+        nav a:hover {
+            text-decoration: underline;
+        }
+        .flash-messages {
+            list-style: none;
+            padding: 0;
+        }
+        .flash-messages li {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .danger { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn:hover { background: #0056b3; }
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #218838; }
+        .book-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .book-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            width: 200px;
+            background: white;
+        }
+        .book-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 4px;
+            background: #f0f0f0;
+        }
+        .book-card h3 {
+            margin: 8px 0 4px;
+            font-size: 16px;
+        }
+        .book-card h3 a {
+            text-decoration: none;
+            color: #333;
+        }
+        .book-card h3 a:hover {
+            color: #007bff;
+        }
+        .book-card p {
+            margin: 3px 0;
+            font-size: 14px;
+            color: #555;
+        }
+        form p {
+            margin: 10px 0;
+        }
+        textarea, input[type="text"], input[type="email"], input[type="password"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button[type="submit"] {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button[type="submit"]:hover { background: #0056b3; }
+        .review {
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="{{ url_for('search') }}">Book Search</a>
+        {% if current_user.is_authenticated %}
+            <span style="color:white; margin-right:10px;">
+                {% if current_user.profile.avatar_url %}
+                    <img src="{{ url_for('static', filename=current_user.profile.avatar_url) }}" alt="avatar" style="width:24px; height:24px; border-radius:50%; vertical-align:middle;">
+                {% endif %}
+                <a href="{{ url_for('profile') }}" style="color:white;">{{ current_user.username }}</a>
+            </span>
+            <a href="{{ url_for('profile') }}">Profile</a>
+            <a href="{{ url_for('favorites') }}">Favourites</a>
+            <a href="{{ url_for('post_create') }}">New post</a>
+            <a href="{{ url_for('account_settings') }}">Settings</a>
+            <a href="{{ url_for('chat') }}">Chat</a>
+            <a href="{{ url_for('logout') }}">Exit ({{ current_user.username }})</a>
+        {% else %}
+            <a href="{{ url_for('login') }}">Login</a>
+            <a href="{{ url_for('register') }}">Sign up</a>
+        {% endif %}
+    </nav>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class="flash-messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+    {% block scripts %}{% endblock %}
+</body>
+</html>

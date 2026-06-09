@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+{% block title %}Edit a review{% endblock %}
+{% block content %}
+    <h1>Edit a review</h1>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <p>{{ form.text.label }}<br>{{ form.text(rows=4, cols=50) }}</p>
+        <p>{{ form.rating.label }} {{ form.rating(size=3, min=1, max=5) }}</p>
+        <p>{{ form.submit() }}</p>
+    </form>
+{% endblock %}

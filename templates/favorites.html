@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% block title %}Favourites{% endblock %}
+{% block content %}
+    <h1>My favorite books</h1>
+    {% if books %}
+        <div class="book-list">
+            {% for book in books %}
+                <div class="book-card">
+                    {% if book.cover_url %}
+                        <img src="{{ book.cover_url }}">
+                    {% else %}
+                        <img src="https://via.placeholder.com/200x300?text=No+Cover" alt="There is no cover">
+                    {% endif %}
+                    <h3><a href="{{ url_for('book_detail', olid=book.olid) }}">{{ book.title }}</a></h3>
+                    <p><strong>Author:</strong> {{ book.authors }}</p>
+                    <p><strong>Year:</strong> {{ book.publish_year or '—' }}</p>
+                    <form method="POST" action="{{ url_for('favorite_remove', olid=book.olid) }}">
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>You haven't added any books to your favorites yet.</p>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+<link rel="icon" href="data:;base64,=">
+{% block title %}Pofile {{ user.username }}{% endblock %}
+{% block content %}
+    {% if user.profile.avatar_url %}
+        <img src="{{ url_for('static', filename=current_user.profile.avatar_url) }}" alt="Аватар" style="max-width:150px; border-radius:10px;">
+    {% endif %}
+    <h1>Pofile: {{ user.username }}</h1>
+    <p><strong>Email:</strong> {{ user.email }}</p>
+    <h2>My posts</h2>
+    {% if posts %}
+        {% for post in posts %}
+            <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; border-radius: 5px;">
+                <h3>{{ post.title }}</h3>
+                <p>{{ post.content }}</p>
+                <small>{{ post.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                {% if post.user_id == current_user.id %}
+                    <div style="margin-top: 5px;">
+                        <a href="{{ url_for('post_edit', post_id=post.id) }}" class="btn">Edit</a>
+                        <form method="POST" action="{{ url_for('post_delete', post_id=post.id) }}" style="display:inline;">
+                            <button type="submit" class="btn btn-danger" onclick="return confirm('Удалить пост?')">Delete</button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>You don't have any posts yet. <a href="{{ url_for('post_create') }}">Create the first one!</a></p>
+    {% endif %}
+{% endblock %}

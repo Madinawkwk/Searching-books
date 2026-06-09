@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+{% block title %}Book Search{% endblock %}
+{% block content %}
+    <h1>Book Search</h1>
+    <form method="POST">
+        <input type="text" name="query" placeholder="Title" value="{{ query }}" size="40" required>
+        <button type="submit">Search</button>
+    </form>
+
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+
+    {% if books %}
+        <h2>Results:</h2>
+        <div class="book-list">
+            {% for book in books %}
+                <div class="book-card">
+                    {% if book.cover_url %}
+                        <img src="{{ book.cover_url }}" alt="cover">
+                    {% else %}
+                        <img src="https://via.placeholder.com/200x300?text=No+Cover" alt="no cover">
+                    {% endif %}
+                    <h3>
+                        {% if book.olid %}
+                            <a href="{{ url_for('book_detail', olid=book.olid) }}">{{ book.title }}</a>
+                        {% else %}
+                            {{ book.title }}
+                        {% endif %}
+                    </h3>
+                    <p><strong>Author:</strong> {{ book.authors }}</p>
+                    <p><strong>Year:</strong> {{ book.year }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endblock %}

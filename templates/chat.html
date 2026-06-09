@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+{% block title %}Chat{% endblock %}
+{% block content %}
+    <h1>Chat</h1>
+    <div id="messages" style="border:1px solid #ccc; height:400px; overflow-y:scroll; padding:10px; margin-bottom:10px;"></div>
+    <input type="text" id="message_input" placeholder="enter a message..." style="width:80%;">
+    <button id="send_btn">Send</button>
+{% endblock %}
+
+{% block scripts %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+    <script type="text/javascript" charset="utf-8">
+
+        document.addEventListener('DOMContentLoaded', function() {
+        const socket = io(window.location.origin, { transports: ['websocket', 'polling'] });
+        const messagesDiv = document.getElementById('messages');
+        const input = document.getElementById('message_input');
+        const btn = document.getElementById('send_btn');
+
+        socket.on('new_message', function(data) {
+            const msg = document.createElement('div');
+            msg.innerHTML = `<strong>${data.username}:</strong> ${data.message}`;
+            messagesDiv.appendChild(msg);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+
+        function sendMessage() {
+            const message = input.value.trim();
+            if (message) {
+                socket.emit('send_message', { message: message });
+                input.value = '';
+            }
+        }
+
+        btn.addEventListener('click', sendMessage);
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+    });
+    </script>
+{% endblock %}
