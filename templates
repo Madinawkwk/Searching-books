@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+<link rel="icon" href="data:;base64,=">
+{% block title %}Account Settings{% endblock %}
+{% block content %}
+    <h1>Account Settings</h1>
+    <form method="POST" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+        <p>{{ form.username.label }}<br>{{ form.username(size=32) }}</p>
+        <p>{{ form.email.label }}<br>{{ form.email(size=32) }}</p>
+        <hr>
+        <p><strong>Avatar</strong></p>
+        {% if current_user.profile.avatar_url %}
+            <img src="{{ url_for('static', filename=current_user.profile.avatar_url) }}" alt="Аватар" style="max-width: 100px; border-radius: 50%;">
+        {% endif %}
+        <p>{{ form.avatar() }}</p>
+        <hr>
+        <p><strong>Changing password</strong> </p>
+        {% if current_user.is_oauth_user %}
+            <p><small>You are logged in via a social network, you do not need to change your password..</small></p>
+        {% endif %}
+        <p>{{ form.current_password.label }}<br>{{ form.current_password(size=32) }}</p>
+        <p>{{ form.new_password.label }}<br>{{ form.new_password(size=32) }}</p>
+        <p>{{ form.confirm_new_password.label }}<br>{{ form.confirm_new_password(size=32) }}</p>
+        <p>{{ form.submit() }}</p>
+    </form>
+{% endblock %}
